@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <meta charset="utf-8">
+    <title>Places Search Box</title>
+    <style>
+      /* Always set the map height explicitly to define the size of the div
+       * element that contains the map. */
+      #map {
+        height: 100%;
+      }
+
+      #description {
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+      }
+
+      #infowindow-content .title {
+        font-weight: bold;
+      }
+
+      #infowindow-content {
+        display: none;
+      }
+
+      #map #infowindow-content {
+        display: inline;
+      }
+
+      .pac-card {
+        margin: 10px 10px 0 0;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        background-color: #fff;
+        font-family: Roboto;
+      }
+
+      #pac-container {
+        padding-bottom: 12px;
+        margin-right: 12px;
+      }
+
+      .pac-controls {
+        display: inline-block;
+        padding: 5px 11px;
+      }
+
+      .pac-controls label {
+        font-family: Roboto;
+        font-size: 13px;
+        font-weight: 300;
+      }
+
+      #pac-input {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 300;
+        margin-left: 12px;
+        margin-top: 10px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: calc(100% - 100px);
+      }
+
+      #pac-input:focus {
+        border-color: #4d90fe;
+      }
+
+      #title {
+        color: #fff;
+        background-color: #4d90fe;
+        font-size: 25px;
+        font-weight: 500;
+        padding: 6px 12px;
+      }
+      #target {
+        width: calc(100% - 120px);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Location Picker</h1>
+    <input id="pac-input" class="controls" type="text" placeholder="Search Box">  
+    <div style="width:40vw; height:30vw;">
+        <div style="position:relative; top:15vw; left:20vw; z-index:9999;">
+                <img alt="" src="https://maps.gstatic.com/mapfiles/api-3/images/spotlight-poi2.png" draggable="false" usemap="#gmimap0" style="position: absolute; left: -14px; top: -43px; width: 28px; height: 43px; user-select: none; border: 0px; padding: 0px; margin: 0px; max-width: none;">
+        </div>
+        <div id="map"></div>
+    </div>
+    <div id="address-div">
+        ABCD
+    </div>
+    
+    <script>
+      // This example adds a search box to a map, using the Google Place Autocomplete
+      // feature. People can enter geographical searches. The search box will return a
+      // pick list containing a mix of places and predicted search terms.
+
+      // This example requires the Places library. Include the libraries=places
+      // parameter when you first load the API. For example:
+      // <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&libraries=places">
+      // 6.465506, 79.973161
+      var GEOCODING_API_KEY = "AIzaSyDRjOmpS9GAHR4C7wNxjPLa9mpWptrF55M";
+      function initAutocomplete() {
+        var map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 6.465506, lng: 79.973161},
+          zoom: 16,
+          mapTypeId: 'roadmap',
+          mapTypeControl: false
+        });
+
+        var setMapCenterByGeolocation = function(position) {
+            var lat = position.coords.latitude;
+            var lng = position.coords.longitude;
+            setMapCenter(new google.maps.LatLng(lat, lng));
+        }
+
+        var setMapCenter = function(position) {
+            map.setCenter(position);     
+            getLocation(position);
+        }
+
+        var getLocation = function(position) {
+            clearPrintAddress();
+            console.log("mapcenter", position.lat(), position.lng());
+            try {
+                    if(window.jQuery) {
+                        fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${position.lat()},${position.lng()}&key=${GEOCODING_API_KEY}`)
+                        .then(function(response) {
+                            return response.json();
+                        }).then(function(data) {
+                            if(data.status == "OK") {
+                                var locations = data.results.filter(function(i){
+                                    return i.types.includes("street_address");
+                                });
+                                console.log("locations", locations);
+                                var location = locations[0];
+                                printAddress(location, position);
+                            }
+                        }).catch(function(err1){
+                            console.warn(err1);
+                        });
+                }
+            } catch(err2) {
+                console.warn(err2);
+            }          
+        }
+
+        var printAddress = function(location, position) {
+            console.log("location", location);
+            var unitNo = location.address_components.find(a => a.types.includes("street_number")) || {};
+            var street = location.address_components.find(a => a.types.includes("route")) || {};
+            var suburb = location.address_components.find(a => a.types.includes("sublocality")) || {};
+            var city = location.address_components.find(a => a.types.includes("locality")) || {};
+            var district = location.address_components.find(a => a.types.includes("administrative_area_level_2")) || {};
+            var formettedAddress = { 
+                name: "This will be entered by the user (Eg:  Telexar (Pvt) Ltd.)",
+                unitNo : unitNo.long_name, 
+                street: street.long_name, 
+                suburb: suburb.long_name, 
+                city: city.long_name, 
+                district: district.long_name,
+                additionalDetails: "This will be entered by the user (Eg: Floor, Building Name etc.)",
+                landmarks: "This will be entered by the user (Eg: Next to HNB Bank)",
+                lat: position.lat(),
+                lng: position.lng(),
+                
+            };
+
+            document.getElementById("address-div").innerHTML = `
+            <div><b>Name of the Person/Company:</b> ${formettedAddress.name}<div>
+            <div><b>Unit No/Company:</b> ${formettedAddress.unitNo}<div>
+            <div><b>Street:</b> ${formettedAddress.street}<div>
+            <div><b>Suburb:</b> ${formettedAddress.suburb}<div>
+            <div><b>City:</b> ${formettedAddress.city}<div>
+            <div><b>District:</b> ${formettedAddress.district}<div>
+            <div><b>Additional Details:</b> ${formettedAddress.additionalDetails}<div>
+            <div><b>Landmarks:</b> ${formettedAddress.landmarks}<div>
+            <div><b>Lat:</b> ${formettedAddress.lat}<div>
+            <div><b>Lng:</b> ${formettedAddress.lng}<div>
+            `
+        }
+
+        var clearPrintAddress = function() {
+            document.getElementById("address-div").innerHTML = "";
+        }
+
+        google.maps.event.addListener(map, 'dragend', function() { 
+            var center = map.getCenter();
+            getLocation(center);
+        });
+
+        google.maps.event.addListener(map, 'zoom_changed', function() {
+            var center = map.getCenter();
+            getLocation(center);
+        });
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(setMapCenterByGeolocation);
+        } else {
+            console.warn("Geolocation is not supported by this browser.");
+        }
+
+        // Create the search box and link it to the UI element.
+        var input = document.getElementById('pac-input');
+        var restrictOptions = {
+            componentRestrictions: {country: 'lk'}
+        };
+        var searchBox = new google.maps.places.Autocomplete(input, restrictOptions);
+        map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+
+        // Bias the SearchBox results towards current map's viewport.
+        map.addListener('bounds_changed', function() {
+          searchBox.setBounds(map.getBounds());
+        });
+
+        // Listen for the event fired when the user selects a prediction and retrieve
+        // more details for that place.
+        searchBox.addListener('place_changed', function() {
+          var place = searchBox.getPlace();
+
+          if (!place) {
+            return;
+          }
+
+          // For each place, get the icon, name and location.
+          var bounds = new google.maps.LatLngBounds();
+
+            if (!place.geometry) {
+              console.log("Returned place contains no geometry");
+              return;
+            }
+
+            // Create a marker for each place.
+            setMapCenter(place.geometry.location);
+
+            if (place.geometry.viewport) {
+              // Only geocodes have viewport.
+              bounds.union(place.geometry.viewport);
+            } else {
+              bounds.extend(place.geometry.location);
+            }
+
+          map.fitBounds(bounds);
+        });
+      }
+
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDRjOmpS9GAHR4C7wNxjPLa9mpWptrF55M&libraries=places&callback=initAutocomplete"
+         async defer></script>
+  </body>
+</html>
